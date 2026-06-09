@@ -1194,6 +1194,7 @@
       try {
         const response = await fetch("/api/state", { headers: authHeaders() });
         if (response.status === 401) throw new Error("unauthorized");
+        if (!response.ok) throw new Error("state_error");
         const state = await response.json();
         if (!state) {
           saveSharedState();
@@ -1209,7 +1210,8 @@
         }));
         if (Array.isArray(state.ventures)) ventures = state.ventures;
         if (Array.isArray(state.payments)) payments = state.payments;
-      } catch {
+      } catch (error) {
+        if (error.message === "unauthorized") throw error;
         console.warn("Sincronizacao local indisponivel. Usando dados deste navegador.");
       }
     }
