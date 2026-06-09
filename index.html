@@ -700,6 +700,41 @@
       background: rgba(15,35,40,.44);
     }
 
+    .auth-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: linear-gradient(145deg, var(--navy), #5b42bb);
+    }
+
+    .auth-screen.open { display: flex; }
+
+    .auth-card {
+      width: 100%;
+      max-width: 390px;
+      padding: 26px;
+      border-radius: 18px;
+      background: #fff;
+      box-shadow: 0 24px 70px rgba(0,0,0,.2);
+    }
+
+    .auth-card img {
+      width: 72px;
+      height: 72px;
+      object-fit: cover;
+      border-radius: 14px;
+      margin-bottom: 16px;
+    }
+
+    .auth-card h2 { margin-bottom: 6px; color: var(--navy); font-family: "Manrope", sans-serif; }
+    .auth-card p { color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .auth-error { display: none; margin-top: 10px; color: #c64c42; font-size: 12px; font-weight: 700; }
+    .auth-error.visible { display: block; }
+
     .modal-backdrop.open { display: flex; }
 
     .modal {
@@ -811,6 +846,20 @@
   </style>
 </head>
 <body>
+  <section class="auth-screen" id="authScreen">
+    <form class="auth-card" id="authForm">
+      <img src="logo-d1.jpeg" alt="Logo D1">
+      <h2>Acesso restrito</h2>
+      <p>Digite a senha para acessar tarefas, pagamentos, anexos e relatórios da D1.</p>
+      <label for="authPassword">Senha de acesso</label>
+      <input id="authPassword" type="password" required autocomplete="current-password" placeholder="Digite a senha">
+      <div class="modal-actions" style="margin-top:16px">
+        <button class="save-btn" type="submit">Entrar</button>
+      </div>
+      <div class="auth-error" id="authError">Senha incorreta ou ainda não configurada.</div>
+    </form>
+  </section>
+
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand"><img class="brand-logo" src="logo-d1.jpeg" alt="Logo D1"> D1 Tarefas</div>
@@ -1119,6 +1168,11 @@
     const paymentForm = document.getElementById("paymentForm");
     const paymentFilter = document.getElementById("paymentFilter");
     const serverSync = location.protocol.startsWith("http");
+    let appPassword = sessionStorage.getItem("d1AppPassword") || "";
+
+    function authHeaders() {
+      return appPassword ? { "X-App-Password": appPassword } : {};
+    }
 
     function saveTasks() {
       localStorage.setItem("meuDiaTasks", JSON.stringify(tasks));
@@ -1138,7 +1192,8 @@
     async function loadSharedState() {
       if (!serverSync) return;
       try {
-        const response = await fetch("/api/state");
+        const response = await fetch("/api/state", { headers: authHeaders() });
+        if (response.status === 401) throw new Error("unauthorized");
         const state = await response.json();
         if (!state) {
           saveSharedState();
@@ -1164,7 +1219,7 @@
       try {
         await fetch("/api/state", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHeaders() },
           body: JSON.stringify({ tasks, ventures, payments, updatedAt: new Date().toISOString() })
         });
       } catch {
@@ -1613,7 +1668,7 @@
           reader.onload = () => resolve(String(reader.result).split(",")[1]);
           reader.readAsDataURL(file);
         });
-        await fetch("/api/files/" + encodeURIComponent(id), { method: "POST", body: base64 });
+        await fetch("/api/files/" + encodeURIComponent(id), { method: "POST", headers: authHeaders(), body: base64 });
         return;
       }
       const db = await openFileDatabase();
@@ -1627,7 +1682,7 @@
 
     async function deleteStoredAttachment(id) {
       if (serverSync) {
-        await fetch("/api/files/" + encodeURIComponent(id), { method: "DELETE" });
+        await fetch("/api/files/" + encodeURIComponent(id), { method: "DELETE", headers: authHeaders() });
         return;
       }
       const db = await openFileDatabase();
@@ -1655,7 +1710,7 @@
 
     async function openAttachment(id) {
       if (serverSync) {
-        window.open("/api/files/" + encodeURIComponent(id), "_blank");
+        window.open("/api/files/" + encodeURIComponent(id) + "?key=" + encodeURIComponent(appPassword), "_blank");
         return;
       }
       const db = await openFileDatabase();
@@ -1818,13 +1873,39 @@
     document.getElementById("taskDate").value = todayISO;
     document.getElementById("paymentDueDate").value = todayISO;
     document.getElementById("dashboardMonth").value = todayISO.slice(0, 7);
+    function showAuth() {
+      if (serverSync && !appPassword) document.getElementById("authScreen").classList.add("open");
+    }
+
     async function startApp() {
+      if (serverSync && !appPassword) {
+        showAuth();
+        return;
+      }
       await loadSharedState();
       render();
       renderVentures();
       renderDashboard();
       renderPayments();
     }
+    document.getElementById("authForm").addEventListener("submit", async event => {
+      event.preventDefault();
+      appPassword = document.getElementById("authPassword").value;
+      sessionStorage.setItem("d1AppPassword", appPassword);
+      document.getElementById("authError").classList.remove("visible");
+      try {
+        await loadSharedState();
+        document.getElementById("authScreen").classList.remove("open");
+        render();
+        renderVentures();
+        renderDashboard();
+        renderPayments();
+      } catch {
+        sessionStorage.removeItem("d1AppPassword");
+        appPassword = "";
+        document.getElementById("authError").classList.add("visible");
+      }
+    });
     startApp();
   </script>
 </body>
