@@ -148,6 +148,32 @@
 
     .topbar { justify-content: space-between; }
 
+    .mobile-nav {
+      display: none;
+      gap: 8px;
+      margin: 18px 0 4px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+    }
+
+    .mobile-nav button {
+      flex: 0 0 auto;
+      padding: 9px 11px;
+      border: 1px solid #e1dcf7;
+      border-radius: 999px;
+      color: var(--navy);
+      background: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .mobile-nav button.active {
+      color: #fff;
+      background: var(--navy);
+      border-color: var(--navy);
+    }
+
     h1, h2, h3, p { margin-top: 0; }
 
     h1 {
@@ -616,6 +642,46 @@
     .stage-bar { height: 8px; overflow: hidden; border-radius: 10px; background: #ece9f7; }
     .stage-fill { height: 100%; border-radius: 10px; background: linear-gradient(90deg, var(--navy), #6d56c6); }
 
+    .payment-alert {
+      margin-bottom: 16px;
+      padding: 14px 16px;
+      border: 1px solid #f2dcc7;
+      border-radius: 14px;
+      color: #8a5d28;
+      background: #fff8ee;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .payment-alert strong { display: block; color: #7f4b18; margin-bottom: 3px; }
+
+    .payment-row {
+      display: grid;
+      grid-template-columns: 1.2fr .75fr .75fr .75fr .8fr;
+      gap: 10px;
+      align-items: center;
+      padding: 13px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 12px;
+    }
+
+    .payment-row:last-child { border-bottom: 0; }
+    .payment-row strong { color: var(--ink); font-size: 13px; }
+    .payment-row small { display: block; margin-top: 4px; color: var(--muted); }
+
+    .payment-status {
+      padding: 6px 8px;
+      border-radius: 999px;
+      text-align: center;
+      font-weight: 700;
+    }
+
+    .payment-status.scheduled { color: #624cb5; background: var(--navy-soft); }
+    .payment-status.paid { color: #398267; background: var(--green-soft); }
+    .payment-status.overdue { color: #d45d4e; background: #fff0ec; }
+
+    .payment-actions { display: flex; gap: 5px; justify-content: flex-end; }
+
     .empty {
       padding: 22px 6px;
       color: var(--muted);
@@ -637,8 +703,12 @@
     .modal-backdrop.open { display: flex; }
 
     .modal {
+      display: flex;
+      flex-direction: column;
       width: 100%;
       max-width: 470px;
+      max-height: calc(100vh - 34px);
+      overflow-y: auto;
       padding: 25px;
       border-radius: 18px;
       background: var(--white);
@@ -696,17 +766,47 @@
     @media (max-width: 900px) {
       .app-shell { grid-template-columns: 1fr; }
       .sidebar { display: none; }
+      .mobile-nav { display: flex; }
       main { padding: 24px 18px 36px; }
       .stats { grid-template-columns: repeat(2, 1fr); }
       .dashboard-grid { grid-template-columns: repeat(2, 1fr); }
       .page-grid { grid-template-columns: 1fr; }
+      .payment-row { grid-template-columns: 1fr; }
+      .payment-actions { justify-content: flex-start; }
     }
 
     @media (max-width: 520px) {
+      .modal-backdrop {
+        align-items: flex-start;
+        padding: 10px;
+        overflow-y: auto;
+      }
+
+      .modal {
+        height: calc(100dvh - 20px);
+        max-height: calc(100dvh - 20px);
+        overflow: hidden;
+        padding: 18px;
+        border-radius: 14px;
+      }
+
       .hero { display: block; }
       .hero .primary-btn { margin-top: 17px; }
-      .form-grid { grid-template-columns: 1fr; }
+      .form-grid {
+        grid-template-columns: 1fr;
+        min-height: 0;
+        overflow-y: auto;
+        padding-right: 2px;
+        padding-bottom: 10px;
+      }
       .form-group.full { grid-column: auto; }
+      .modal-actions {
+        flex-shrink: 0;
+        margin: 18px -18px -18px;
+        padding: 12px 18px;
+        background: #fff;
+        border-top: 1px solid var(--line);
+      }
     }
   </style>
 </head>
@@ -723,6 +823,7 @@
         <button class="nav-button featured" id="venturesNav"><span>▦</span><span>EMPREENDIMENTOS</span></button>
         <button class="nav-button featured" id="dashboardNav"><span>▥</span><span>DASHBOARD</span></button>
         <button class="nav-button featured" id="reportNav"><span>▤</span><span>RELATÓRIO</span></button>
+        <button class="nav-button featured" id="paymentsNav"><span>$</span><span>PAGAMENTOS</span></button>
       </nav>
       <div class="sidebar-tip">
         <strong>Um passo de cada vez</strong>
@@ -738,6 +839,14 @@
         </div>
         <div class="avatar" title="Seu perfil">EU</div>
       </header>
+
+      <nav class="mobile-nav" aria-label="Menu mobile">
+        <button id="mobileOverviewNav" class="active">Visão geral</button>
+        <button id="mobileVenturesNav">Empreendimentos</button>
+        <button id="mobileDashboardNav">Dashboard</button>
+        <button id="mobilePaymentsNav">Pagamentos</button>
+        <button id="mobileReportNav">Relatório</button>
+      </nav>
 
       <div id="overviewView">
       <section class="hero">
@@ -831,7 +940,74 @@
         </div>
         <div id="dashboardContent"></div>
       </section>
+
+      <section id="paymentsView" class="view-hidden">
+        <div class="venture-header">
+          <div>
+            <h2>Pagamentos e vencimentos</h2>
+            <p>Controle o que deve ser agendado no ClickUp até segunda-feira às 12h para pagamento na sexta.</p>
+          </div>
+          <button class="primary-btn" id="addPaymentBtn">＋ Novo pagamento</button>
+        </div>
+        <div class="payment-alert" id="paymentAlert"></div>
+        <article class="panel">
+          <div class="section-heading">
+            <div>
+              <h2>Lista de pagamentos</h2>
+              <p class="subtext">Acompanhe vencimentos, agendamentos e alertas.</p>
+            </div>
+            <select class="filter-select" id="paymentFilter">
+              <option value="all">Todos</option>
+              <option value="scheduled">Agendados</option>
+              <option value="paid">Pagos</option>
+              <option value="overdue">Em atraso</option>
+            </select>
+          </div>
+          <div id="paymentList"></div>
+        </article>
+      </section>
     </main>
+  </div>
+
+  <div class="modal-backdrop" id="paymentModalBackdrop" role="dialog" aria-modal="true" aria-labelledby="paymentModalTitle">
+    <form class="modal" id="paymentForm">
+      <h2 id="paymentModalTitle">Adicionar pagamento</h2>
+      <p class="subtext">Cadastre o vencimento e o app calcula a rotina de agendamento no ClickUp.</p>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label for="paymentTitle">Título do pagamento</label>
+          <input id="paymentTitle" required maxlength="80" placeholder="Ex.: Fornecedor, imposto, parcela">
+        </div>
+        <div class="form-group">
+          <label for="paymentAmount">Valor</label>
+          <input id="paymentAmount" type="number" min="0" step="0.01" placeholder="0,00">
+        </div>
+        <div class="form-group">
+          <label for="paymentDueDate">Vencimento</label>
+          <input id="paymentDueDate" type="date" required>
+        </div>
+        <div class="form-group">
+          <label for="paymentStatus">Status</label>
+          <select id="paymentStatus">
+            <option value="scheduled">A agendar / agendado</option>
+            <option value="paid">Pago</option>
+            <option value="overdue">Em atraso</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="paymentAlertDays">Alertar quantos dias antes?</label>
+          <input id="paymentAlertDays" type="number" min="1" max="30" value="3">
+        </div>
+        <div class="form-group full">
+          <label for="paymentNotes">Observações</label>
+          <textarea id="paymentNotes" maxlength="180" placeholder="Ex.: lançar no ClickUp, conferir boleto, anexar comprovante."></textarea>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="secondary-btn" type="button" id="closePaymentModal">Cancelar</button>
+        <button class="save-btn" type="submit">Adicionar pagamento</button>
+      </div>
+    </form>
   </div>
 
   <div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
@@ -906,6 +1082,7 @@
     ];
 
     const storedTasks = JSON.parse(localStorage.getItem("meuDiaTasks"));
+    const storedPayments = JSON.parse(localStorage.getItem("d1Payments"));
     let tasks = (storedTasks || initialTasks).map(task => ({
       ...task,
       info: task.info || "",
@@ -917,7 +1094,11 @@
     const priorityLabels = { high: "Alta prioridade", medium: "Média prioridade", low: "Baixa prioridade" };
     const statusLabels = { executed: "Executado", todo: "A realizar", overdue: "Em atraso" };
     const statusIcons = { executed: "✓", todo: "◷", overdue: "!" };
+    const paymentStatusLabels = { scheduled: "Agendado", paid: "Pago", overdue: "Em atraso" };
     let dashboardMode = "total";
+    let payments = storedPayments || [
+      { id: 1, title: "Pagamento exemplo", amount: 0, dueDate: todayISO, status: "scheduled", alertDays: 3, notes: "Agendar no ClickUp até segunda-feira às 12h para pagamento na sexta." }
+    ];
     let ventures = JSON.parse(localStorage.getItem("d1Ventures")) || [
       {
         id: 1,
@@ -934,6 +1115,9 @@
     const filter = document.getElementById("filter");
     const modal = document.getElementById("modalBackdrop");
     const form = document.getElementById("taskForm");
+    const paymentModal = document.getElementById("paymentModalBackdrop");
+    const paymentForm = document.getElementById("paymentForm");
+    const paymentFilter = document.getElementById("paymentFilter");
     const serverSync = location.protocol.startsWith("http");
 
     function saveTasks() {
@@ -943,6 +1127,11 @@
 
     function saveVentures() {
       localStorage.setItem("d1Ventures", JSON.stringify(ventures));
+      saveSharedState();
+    }
+
+    function savePayments() {
+      localStorage.setItem("d1Payments", JSON.stringify(payments));
       saveSharedState();
     }
 
@@ -964,6 +1153,7 @@
           status: task.status || (task.done ? "executed" : "todo")
         }));
         if (Array.isArray(state.ventures)) ventures = state.ventures;
+        if (Array.isArray(state.payments)) payments = state.payments;
       } catch {
         console.warn("Sincronizacao local indisponivel. Usando dados deste navegador.");
       }
@@ -975,7 +1165,7 @@
         await fetch("/api/state", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tasks, ventures, updatedAt: new Date().toISOString() })
+          body: JSON.stringify({ tasks, ventures, payments, updatedAt: new Date().toISOString() })
         });
       } catch {
         console.warn("Nao foi possivel salvar no servidor local.");
@@ -1069,13 +1259,108 @@
     function showView(view) {
       const isVentures = view === "ventures";
       const isDashboard = view === "dashboard";
-      document.getElementById("overviewView").classList.toggle("view-hidden", isVentures || isDashboard);
+      const isPayments = view === "payments";
+      document.getElementById("overviewView").classList.toggle("view-hidden", isVentures || isDashboard || isPayments);
       document.getElementById("venturesView").classList.toggle("view-hidden", !isVentures);
       document.getElementById("dashboardView").classList.toggle("view-hidden", !isDashboard);
+      document.getElementById("paymentsView").classList.toggle("view-hidden", !isPayments);
       document.getElementById("overviewNav").classList.toggle("active", !isVentures && !isDashboard);
       document.getElementById("venturesNav").classList.toggle("active", isVentures);
       document.getElementById("dashboardNav").classList.toggle("active", isDashboard);
+      document.getElementById("paymentsNav").classList.toggle("active", isPayments);
+      document.getElementById("mobileOverviewNav").classList.toggle("active", !isVentures && !isDashboard && !isPayments);
+      document.getElementById("mobileVenturesNav").classList.toggle("active", isVentures);
+      document.getElementById("mobileDashboardNav").classList.toggle("active", isDashboard);
+      document.getElementById("mobilePaymentsNav").classList.toggle("active", isPayments);
       if (isDashboard) renderDashboard();
+      if (isPayments) renderPayments();
+    }
+
+    function formatCurrency(value) {
+      return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value || 0));
+    }
+
+    function mondayDeadlineFor(dueDate) {
+      const date = new Date(dueDate + "T12:00:00");
+      const day = date.getDay();
+      const fridayOffset = 5 - day;
+      const friday = new Date(date);
+      friday.setDate(date.getDate() + fridayOffset);
+      if (day > 5) friday.setDate(friday.getDate() + 7);
+      const monday = new Date(friday);
+      monday.setDate(friday.getDate() - 4);
+      monday.setHours(12, 0, 0, 0);
+      return monday;
+    }
+
+    function paymentAlertText(payment) {
+      const now = new Date();
+      const dueDate = new Date(payment.dueDate + "T12:00:00");
+      const alertStart = new Date(dueDate);
+      alertStart.setDate(dueDate.getDate() - Number(payment.alertDays || 3));
+      const clickupDeadline = mondayDeadlineFor(payment.dueDate);
+      if (payment.status === "paid") return "Pagamento concluído.";
+      if (now > dueDate) return "Vencimento passou. Verificar pagamento em atraso.";
+      if (now > clickupDeadline) return "Prazo de agendamento no ClickUp passou. Prioridade máxima.";
+      if (now >= alertStart) return "Atenção: pagamento próximo do vencimento.";
+      return "Dentro do prazo.";
+    }
+
+    function renderPayments() {
+      const chosen = paymentFilter.value;
+      const visible = payments.filter(payment => chosen === "all" || payment.status === chosen);
+      const pendingAlerts = payments.filter(payment => payment.status !== "paid" && paymentAlertText(payment) !== "Dentro do prazo.").length;
+      document.getElementById("paymentAlert").innerHTML = `
+        <strong>Rotina fixa de pagamentos</strong>
+        Agendar no ClickUp até <b>12h de toda segunda-feira</b> para pagamento na sexta-feira. Alertas ativos: ${pendingAlerts}.
+      `;
+      document.getElementById("paymentList").innerHTML = visible.length ? visible.map(payment => {
+        const deadline = mondayDeadlineFor(payment.dueDate);
+        const alert = paymentAlertText(payment);
+        return `<div class="payment-row">
+          <div><strong>${escapeHtml(payment.title)}</strong><small>${escapeHtml(payment.notes || "Sem observações")}</small></div>
+          <div>${formatCurrency(payment.amount)}<small>Valor</small></div>
+          <div>${formatDate(payment.dueDate)}<small>Vencimento</small></div>
+          <div>${new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit" }).format(deadline)} até 12h<small>Agendar no ClickUp</small></div>
+          <div>
+            <select class="status-select" onchange="changePaymentStatus(${payment.id}, this.value)">
+              <option value="scheduled" ${payment.status === "scheduled" ? "selected" : ""}>Agendado</option>
+              <option value="paid" ${payment.status === "paid" ? "selected" : ""}>Pago</option>
+              <option value="overdue" ${payment.status === "overdue" ? "selected" : ""}>Em atraso</option>
+            </select>
+            <span class="payment-status ${payment.status}">${paymentStatusLabels[payment.status]}</span>
+            <small>${escapeHtml(alert)}</small>
+          </div>
+          <div class="payment-actions">
+            <button class="icon-btn" onclick="deletePayment(${payment.id})" title="Excluir pagamento">×</button>
+          </div>
+        </div>`;
+      }).join("") : `<div class="empty">Nenhum pagamento encontrado.</div>`;
+    }
+
+    function changePaymentStatus(id, status) {
+      payments = payments.map(payment => payment.id === id ? { ...payment, status } : payment);
+      savePayments();
+      renderPayments();
+    }
+
+    function deletePayment(id) {
+      payments = payments.filter(payment => payment.id !== id);
+      savePayments();
+      renderPayments();
+    }
+
+    function openPaymentModal() {
+      paymentModal.classList.add("open");
+      document.getElementById("paymentDueDate").value = todayISO;
+      setTimeout(() => document.getElementById("paymentTitle").focus(), 100);
+    }
+
+    function closePaymentModal() {
+      paymentModal.classList.remove("open");
+      paymentForm.reset();
+      document.getElementById("paymentDueDate").value = todayISO;
+      document.getElementById("paymentAlertDays").value = 3;
     }
 
     function setDashboardMode(mode) {
@@ -1158,7 +1443,20 @@
           origin: "Subtarefa"
         }))
       ));
-      return [...mainRows, ...subtaskRows];
+      const paymentRows = payments.map(payment => ({
+        title: payment.title,
+        status: paymentStatusLabels[payment.status],
+        date: payment.dueDate || "",
+        month: payment.dueDate ? payment.dueDate.slice(0, 7) : "Sem data",
+        time: "Agendar segunda até 12h",
+        category: "Pagamento",
+        priority: paymentAlertText(payment),
+        info: `Valor: ${formatCurrency(payment.amount)} | ClickUp: ${new Intl.DateTimeFormat("pt-BR").format(mondayDeadlineFor(payment.dueDate))} até 12h | ${payment.notes || ""}`,
+        drive: "",
+        attachments: "",
+        origin: "Pagamento"
+      }));
+      return [...mainRows, ...subtaskRows, ...paymentRows];
     }
 
     function excelCell(value) {
@@ -1461,7 +1759,17 @@
     document.getElementById("venturesNav").addEventListener("click", () => showView("ventures"));
     document.getElementById("dashboardNav").addEventListener("click", () => showView("dashboard"));
     document.getElementById("reportNav").addEventListener("click", createExcelReport);
+    document.getElementById("paymentsNav").addEventListener("click", () => showView("payments"));
+    document.getElementById("mobileOverviewNav").addEventListener("click", () => showView("overview"));
+    document.getElementById("mobileVenturesNav").addEventListener("click", () => showView("ventures"));
+    document.getElementById("mobileDashboardNav").addEventListener("click", () => showView("dashboard"));
+    document.getElementById("mobilePaymentsNav").addEventListener("click", () => showView("payments"));
+    document.getElementById("mobileReportNav").addEventListener("click", createExcelReport);
     document.getElementById("addVentureBtn").addEventListener("click", addVenture);
+    document.getElementById("addPaymentBtn").addEventListener("click", openPaymentModal);
+    document.getElementById("closePaymentModal").addEventListener("click", closePaymentModal);
+    paymentFilter.addEventListener("change", renderPayments);
+    paymentModal.addEventListener("click", event => { if (event.target === paymentModal) closePaymentModal(); });
     document.getElementById("totalDashboardBtn").addEventListener("click", () => setDashboardMode("total"));
     document.getElementById("monthlyDashboardBtn").addEventListener("click", () => setDashboardMode("monthly"));
     document.getElementById("dashboardMonth").addEventListener("change", renderDashboard);
@@ -1489,15 +1797,33 @@
       render();
     });
 
+    paymentForm.addEventListener("submit", event => {
+      event.preventDefault();
+      payments.unshift({
+        id: Date.now(),
+        title: document.getElementById("paymentTitle").value.trim(),
+        amount: document.getElementById("paymentAmount").value || 0,
+        dueDate: document.getElementById("paymentDueDate").value,
+        status: document.getElementById("paymentStatus").value,
+        alertDays: document.getElementById("paymentAlertDays").value || 3,
+        notes: document.getElementById("paymentNotes").value.trim()
+      });
+      savePayments();
+      closePaymentModal();
+      renderPayments();
+    });
+
     const formattedDate = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "long" }).format(new Date());
     document.getElementById("todayLabel").textContent = formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1);
     document.getElementById("taskDate").value = todayISO;
+    document.getElementById("paymentDueDate").value = todayISO;
     document.getElementById("dashboardMonth").value = todayISO.slice(0, 7);
     async function startApp() {
       await loadSharedState();
       render();
       renderVentures();
       renderDashboard();
+      renderPayments();
     }
     startApp();
   </script>
