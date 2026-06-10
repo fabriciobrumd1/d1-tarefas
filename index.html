@@ -1048,6 +1048,10 @@
           <input id="paymentAlertDays" type="number" min="1" max="30" value="3">
         </div>
         <div class="form-group full">
+          <label for="paymentDrive">Link do arquivo ou pasta no Google Drive</label>
+          <input id="paymentDrive" type="url" placeholder="Ex.: boleto, comprovante ou pasta do fornecedor">
+        </div>
+        <div class="form-group full">
           <label for="paymentNotes">Observações</label>
           <textarea id="paymentNotes" maxlength="180" placeholder="Ex.: lançar no ClickUp, conferir boleto, anexar comprovante."></textarea>
         </div>
@@ -1146,7 +1150,7 @@
     const paymentStatusLabels = { scheduled: "Agendado", paid: "Pago", overdue: "Em atraso" };
     let dashboardMode = "total";
     let payments = storedPayments || [
-      { id: 1, title: "Pagamento exemplo", amount: 0, dueDate: todayISO, status: "scheduled", alertDays: 3, notes: "Agendar no ClickUp até segunda-feira às 12h para pagamento na sexta." }
+      { id: 1, title: "Pagamento exemplo", amount: 0, dueDate: todayISO, status: "scheduled", alertDays: 3, drive: "", notes: "Agendar no ClickUp até segunda-feira às 12h para pagamento na sexta." }
     ];
     let ventures = JSON.parse(localStorage.getItem("d1Ventures")) || [
       {
@@ -1375,7 +1379,7 @@
         const deadline = mondayDeadlineFor(payment.dueDate);
         const alert = paymentAlertText(payment);
         return `<div class="payment-row">
-          <div><strong>${escapeHtml(payment.title)}</strong><small>${escapeHtml(payment.notes || "Sem observações")}</small></div>
+          <div><strong>${escapeHtml(payment.title)}</strong><small>${escapeHtml(payment.notes || "Sem observações")}</small>${safeUrl(payment.drive) ? `<small><a class="task-link" href="${escapeHtml(payment.drive)}" target="_blank" rel="noopener">Abrir no Drive</a></small>` : ""}</div>
           <div>${formatCurrency(payment.amount)}<small>Valor</small></div>
           <div>${formatDate(payment.dueDate)}<small>Vencimento</small></div>
           <div>${new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit" }).format(deadline)} até 12h<small>Agendar no ClickUp</small></div>
@@ -1488,7 +1492,7 @@
       const subtaskRows = ventures.flatMap(venture => venture.subitems.flatMap(stage =>
         stage.tasks.map(task => ({
           title: task.title,
-          status: task.done ? "Executado" : "A realizar",
+        status: task.done ? "Executado" : "A realizar",
           date: "",
           month: "Sem data",
           time: "",
@@ -1509,7 +1513,7 @@
         category: "Pagamento",
         priority: paymentAlertText(payment),
         info: `Valor: ${formatCurrency(payment.amount)} | ClickUp: ${new Intl.DateTimeFormat("pt-BR").format(mondayDeadlineFor(payment.dueDate))} até 12h | ${payment.notes || ""}`,
-        drive: "",
+        drive: payment.drive || "",
         attachments: "",
         origin: "Pagamento"
       }));
@@ -1863,6 +1867,7 @@
         dueDate: document.getElementById("paymentDueDate").value,
         status: document.getElementById("paymentStatus").value,
         alertDays: document.getElementById("paymentAlertDays").value || 3,
+        drive: document.getElementById("paymentDrive").value.trim(),
         notes: document.getElementById("paymentNotes").value.trim()
       });
       savePayments();
@@ -1892,7 +1897,7 @@
     }
     document.getElementById("authForm").addEventListener("submit", async event => {
       event.preventDefault();
-      appPassword = document.getElementById("authPassword").value;
+      appPassword = document.getElementById("authPassword").value.trim();
       sessionStorage.setItem("d1AppPassword", appPassword);
       document.getElementById("authError").classList.remove("visible");
       try {
