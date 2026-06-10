@@ -15,8 +15,18 @@ function readBody(req) {
   });
 }
 
+function isAuthorized(req) {
+  const password = process.env.APP_PASSWORD;
+  if (!password) return true;
+  return req.headers["x-app-password"] === password || req.query.key === password;
+}
+
 module.exports = async function handler(req, res) {
   try {
+    if (!isAuthorized(req)) {
+      return res.status(401).json({ error: "Acesso nao autorizado" });
+    }
+
     const id = req.query.id;
     const pathname = `uploads/${id}`;
 

@@ -2,8 +2,18 @@ const { put, list } = require("@vercel/blob");
 
 const STATE_PATH = "data/d1-state.json";
 
+function isAuthorized(req) {
+  const password = process.env.APP_PASSWORD;
+  if (!password) return true;
+  return req.headers["x-app-password"] === password;
+}
+
 module.exports = async function handler(req, res) {
   try {
+    if (!isAuthorized(req)) {
+      return res.status(401).json({ error: "Acesso nao autorizado" });
+    }
+
     if (req.method === "GET") {
       const result = await list({ prefix: STATE_PATH, limit: 1 });
       const item = result.blobs.find(blob => blob.pathname === STATE_PATH);
