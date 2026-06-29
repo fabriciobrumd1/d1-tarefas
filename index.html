@@ -201,6 +201,28 @@
       font-weight: 700;
     }
 
+    .sync-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .sync-btn {
+      padding: 9px 11px;
+      border: 1px solid #e1dcf7;
+      border-radius: 10px;
+      color: var(--navy);
+      background: #fff;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .sync-status {
+      color: var(--muted);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
     .hero {
       justify-content: space-between;
       margin: 30px 0 22px;
@@ -886,7 +908,11 @@
           <h1>Olá, vamos organizar o seu dia?</h1>
           <p class="eyebrow" id="todayLabel"></p>
         </div>
-        <div class="avatar" title="Seu perfil">EU</div>
+        <div class="sync-actions">
+          <button class="sync-btn" id="syncNowBtn">Sincronizar</button>
+          <span class="sync-status" id="syncStatus">Aguardando</span>
+          <div class="avatar" title="Seu perfil">EU</div>
+        </div>
       </header>
 
       <nav class="mobile-nav" aria-label="Menu mobile">
@@ -1178,6 +1204,11 @@
       return appPassword ? { "X-App-Password": appPassword } : {};
     }
 
+    function updateSyncStatus(message) {
+      const status = document.getElementById("syncStatus");
+      if (status) status.textContent = message;
+    }
+
     function saveTasks() {
       localStorage.setItem("meuDiaTasks", JSON.stringify(tasks));
       saveSharedState();
@@ -1193,6 +1224,22 @@
       saveSharedState();
     }
 
+    function applySharedState(state) {
+      if (Array.isArray(state.tasks)) tasks = state.tasks.map(task => ({
+        ...task,
+        info: task.info || "",
+        date: task.date || todayISO,
+        drive: task.drive || "",
+        attachments: task.attachments || [],
+        status: task.status || (task.done ? "executed" : "todo")
+      }));
+      if (Array.isArray(state.ventures)) ventures = state.ventures;
+      if (Array.isArray(state.payments)) payments = state.payments;
+      localStorage.setItem("meuDiaTasks", JSON.stringify(tasks));
+      localStorage.setItem("d1Ventures", JSON.stringify(ventures));
+      localStorage.setItem("d1Payments", JSON.stringify(payments));
+    }
+
     async function loadSharedState() {
       if (!serverSync) return;
       try {
@@ -1204,18 +1251,11 @@
           saveSharedState();
           return;
         }
-        if (Array.isArray(state.tasks)) tasks = state.tasks.map(task => ({
-          ...task,
-          info: task.info || "",
-          date: task.date || todayISO,
-          drive: task.drive || "",
-          attachments: task.attachments || [],
-          status: task.status || (task.done ? "executed" : "todo")
-        }));
-        if (Array.isArray(state.ventures)) ventures = state.ventures;
-        if (Array.isArray(state.payments)) payments = state.payments;
+        applySharedState(state);
+        updateSyncStatus("Sincronizado " + new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(new Date()));
       } catch (error) {
         if (error.message === "unauthorized") throw error;
+        updateSyncStatus("Falha ao sincronizar");
         console.warn("Sincronizacao local indisponivel. Usando dados deste navegador.");
       }
     }
@@ -1223,14 +1263,25 @@
     async function saveSharedState() {
       if (!serverSync) return;
       try {
-        await fetch("/api/state", {
+        const response = await fetch("/api/state", {
           method: "POST",
           headers: { "Content-Type": "application/json", ...authHeaders() },
           body: JSON.stringify({ tasks, ventures, payments, updatedAt: new Date().toISOString() })
         });
+        if (!response.ok) throw new Error("save_error");
+        updateSyncStatus("Salvo online " + new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(new Date()));
       } catch {
+        updateSyncStatus("Não salvou online");
         console.warn("Nao foi possivel salvar no servidor local.");
       }
+    }
+
+    async function syncNow() {
+      await loadSharedState();
+      render();
+      renderVentures();
+      renderDashboard();
+      renderPayments();
     }
 
     function renderVentures() {
@@ -1817,6 +1868,7 @@
     document.getElementById("openModal").addEventListener("click", openModal);
     document.getElementById("closeModal").addEventListener("click", closeModal);
     document.getElementById("overviewNav").addEventListener("click", () => showView("overview"));
+    document.getElementById("syncNowBtn").addEventListener("click", syncNow);
     document.getElementById("venturesNav").addEventListener("click", () => showView("ventures"));
     document.getElementById("dashboardNav").addEventListener("click", () => showView("dashboard"));
     document.getElementById("reportNav").addEventListener("click", createExcelReport);
@@ -1894,6 +1946,12 @@
       renderVentures();
       renderDashboard();
       renderPayments();
+      if (serverSync) {
+        setInterval(syncNow, 30000);
+        document.addEventListener("visibilitychange", () => {
+          if (!document.hidden) syncNow();
+        });
+      }
     }
     document.getElementById("authForm").addEventListener("submit", async event => {
       event.preventDefault();
