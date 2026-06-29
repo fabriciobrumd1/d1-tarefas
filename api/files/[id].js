@@ -16,15 +16,19 @@ function readBody(req) {
 }
 
 function isAuthorized(req) {
-  const password = process.env.APP_PASSWORD;
+  const password = (process.env.APP_PASSWORD || "").trim();
   if (!password) return true;
-  return req.headers["x-app-password"] === password || req.query.key === password;
+  return String(req.headers["x-app-password"] || "").trim() === password || String(req.query.key || "").trim() === password;
 }
 
 module.exports = async function handler(req, res) {
   try {
     if (!isAuthorized(req)) {
       return res.status(401).json({ error: "Acesso nao autorizado" });
+    }
+
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      return res.status(500).json({ error: "BLOB_READ_WRITE_TOKEN ausente. Conecte o Vercel Blob ao projeto e reimplante." });
     }
 
     const id = req.query.id;

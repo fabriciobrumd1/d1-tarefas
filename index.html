@@ -1246,7 +1246,10 @@
       try {
         const response = await fetch("/api/state", { headers: authHeaders() });
         if (response.status === 401) throw new Error("unauthorized");
-        if (!response.ok) throw new Error("state_error");
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error("state_error " + response.status + " " + errorText.slice(0, 80));
+        }
         const state = await response.json();
         if (!state) {
           saveSharedState();
@@ -1256,8 +1259,8 @@
         updateSyncStatus("Sincronizado " + new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(new Date()));
       } catch (error) {
         if (error.message === "unauthorized") throw error;
-        updateSyncStatus("Falha ao sincronizar");
-        console.warn("Sincronizacao local indisponivel. Usando dados deste navegador.");
+        updateSyncStatus("Falha: " + error.message.slice(0, 45));
+        console.warn("Sincronizacao local indisponivel.", error);
       }
     }
 
@@ -1269,11 +1272,14 @@
           headers: { "Content-Type": "application/json", ...authHeaders() },
           body: JSON.stringify({ tasks, ventures, payments, updatedAt: new Date().toISOString() })
         });
-        if (!response.ok) throw new Error("save_error");
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(response.status + " " + errorText.slice(0, 70));
+        }
         updateSyncStatus("Salvo online " + new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(new Date()));
-      } catch {
-        updateSyncStatus("Não salvou online");
-        console.warn("Nao foi possivel salvar no servidor local.");
+      } catch (error) {
+        updateSyncStatus("Não salvou: " + error.message.slice(0, 45));
+        console.warn("Nao foi possivel salvar no servidor local.", error);
       }
     }
 
