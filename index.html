@@ -909,7 +909,8 @@
           <p class="eyebrow" id="todayLabel"></p>
         </div>
         <div class="sync-actions">
-          <button class="sync-btn" id="syncNowBtn">Sincronizar</button>
+          <button class="sync-btn" id="syncNowBtn">Buscar online</button>
+          <button class="sync-btn" id="pushNowBtn">Salvar online</button>
           <span class="sync-status" id="syncStatus">Aguardando</span>
           <div class="avatar" title="Seu perfil">EU</div>
         </div>
@@ -1282,6 +1283,10 @@
       renderVentures();
       renderDashboard();
       renderPayments();
+    }
+
+    async function pushNow() {
+      await saveSharedState();
     }
 
     function renderVentures() {
@@ -1869,6 +1874,7 @@
     document.getElementById("closeModal").addEventListener("click", closeModal);
     document.getElementById("overviewNav").addEventListener("click", () => showView("overview"));
     document.getElementById("syncNowBtn").addEventListener("click", syncNow);
+    document.getElementById("pushNowBtn").addEventListener("click", pushNow);
     document.getElementById("venturesNav").addEventListener("click", () => showView("ventures"));
     document.getElementById("dashboardNav").addEventListener("click", () => showView("dashboard"));
     document.getElementById("reportNav").addEventListener("click", createExcelReport);
