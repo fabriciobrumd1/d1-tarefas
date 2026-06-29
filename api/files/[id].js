@@ -1,4 +1,4 @@
-const { put, list, del } = require("@vercel/blob");
+const { put, get, del } = require("@vercel/blob");
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -37,18 +37,18 @@ module.exports = async function handler(req, res) {
     if (req.method === "POST") {
       const base64 = await readBody(req);
       const blob = await put(pathname, Buffer.from(base64, "base64"), {
-        access: "public",
+        access: "private",
         allowOverwrite: true
       });
       return res.status(200).json({ ok: true, url: blob.url });
     }
 
     if (req.method === "GET") {
-      const result = await list({ prefix: pathname, limit: 1 });
-      const item = result.blobs.find(blob => blob.pathname === pathname);
-      if (!item) return res.status(404).send("Arquivo nao encontrado");
-      res.writeHead(302, { Location: item.url });
-      return res.end();
+      const result = await get(pathname, { access: "private" });
+      if (!result || result.statusCode !== 200) return res.status(404).send("Arquivo nao encontrado");
+      const buffer = Buffer.from(await new Response(result.stream).arrayBuffer());
+      res.writeHead(200, { "Content-Type": result.blob.contentType || "application/octet-stream" });
+      return res.end(buffer);
     }
 
     if (req.method === "DELETE") {
